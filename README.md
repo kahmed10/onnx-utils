@@ -13,16 +13,18 @@ positional arguments:
 
 optional arguments:
 
-  -h, --help         show this help message and exit
+  -h, --help             show this help message and exit
   
-  --inputs INPUTS    comma separated model input names appended with shapes,
-                     e.g. --inputs nodename1[1,2,3],nodename2[1,2,3]
+  --inputs INPUTS        comma separated model input names appended with shapes,
+                         e.g. --inputs nodename1[1,2,3],nodename2[1,2,3]
   
-  --outputs OUTPUTS  comma separated model output names appended with shapes,
-                     e.g. --outputs outnodename1[1,2,3],outnodename2[1,2,3]
+  --outputs OUTPUTS      comma separated model output names appended with shapes,
+                         e.g. --outputs outnodename1[1,2,3],outnodename2[1,2,3]
+  
+  --constants CONSTANTS  comma separated model constant names appended with shapes,
+                         e.g. --constants constantnodename1[1,2,3],constantnodename2[1,2,3]
  
- --skipverify       skip verification of model. Useful if shapes are not
-                     known
+ --skipverify            skip verification of model. Useful if shapes are not known
 
 # onnx-summarize
 
