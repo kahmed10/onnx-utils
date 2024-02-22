@@ -2,11 +2,13 @@
 # ONNX Model Editor and Graph Extractor
 # License under The MIT License
 # Written by Saurabh Shandilya
+# Modified by Khalique Ahmed
 # -----------------------------------------------
 
 import onnx
 from onnx import helper, checker
 from onnx import TensorProto
+import numpy as np
 import re
 import argparse
 
@@ -45,7 +47,9 @@ def traceDependentNodes(graph,name,node_input_names,node_map, initializer_map):
         node_input_names.append(name)                    
     return node_input_names     
     
-def onnx_edit(input_model, output_model, new_input_node_names, input_shape_map, new_output_node_names, output_shape_map, verify):
+def onnx_edit(input_model, output_model, new_input_node_names, input_shape_map,
+              new_output_node_names, output_shape_map, constant_node_names,
+              constant_shape_map, verify):
     """ edits and modifies an onnx model to extract a subgraph based on input/output node names and shapes.
     Arguments: 
         input_model: path of input onnx model
@@ -62,7 +66,7 @@ def onnx_edit(input_model, output_model, new_input_node_names, input_shape_map, 
     model = onnx.load(input_model)
     graph = model.graph
     if(verify):
-        print("input model Errors: ", onnx.checker.check_model(model))
+        print("input model Errors: ", onnx.checker.check_model(input_model))
     
     #Generate a name for all node if they have none.
     nodeIdx = 0;
@@ -80,6 +84,40 @@ def onnx_edit(input_model, output_model, new_input_node_names, input_shape_map, 
         new_input_node_names = list(input_map)
     if not new_output_node_names:
         new_output_node_names = list(output_map)
+
+    for name in output_map.keys():
+        print(name)
+    for name in constant_node_names:
+        n_name = name.rstrip('_output_0')
+        # graph.node.remove(node_map[n_name])
+        print(constant_shape_map[name])
+        x = np.array(constant_shape_map[name])
+        print(x.flatten().astype(int))
+        const_node = onnx.helper.make_node(
+                'Constant',
+                inputs=[],
+                outputs=[name],
+                name=n_name,
+                value=onnx.helper.make_tensor(
+                    name=f'{n_name}_tensor',
+                    data_type=TensorProto.INT32,
+                    dims=x.shape,
+                    vals=x.flatten().astype(int),
+                ),
+            )
+        i = 0
+        for node in graph.node:
+            if node.name == n_name:
+                break
+            i += 1
+        print(i)
+        graph.node.remove(node_map[n_name])
+        graph.node.insert(i, const_node)
+        
+
+    node_map = createGraphMemberMap(graph.node)
+    print(constant_node_names[0].rstrip('_output_0') in node_map)
+    print(node_map[constant_node_names[0].rstrip('_output_0')])
        
     # MODIFY INPUTS
     # Break the graph based on the new input node names
@@ -100,11 +138,17 @@ def onnx_edit(input_model, output_model, new_input_node_names, input_shape_map, 
                     nodesToRemoveToAvoidDuplicateEntries.append(n)
         for n in nodesToRemoveToAvoidDuplicateEntries:
             graph.node.remove(n)
+        tensor_type = TensorProto.FLOAT16
+        # if 'Concat' in name:
+        #     tensor_type = TensorProto.INT32
         if(name in input_shape_map.keys()):
-            new_nv = helper.make_tensor_value_info(name, TensorProto.FLOAT, input_shape_map[name])
+            new_nv = helper.make_tensor_value_info(name, tensor_type, input_shape_map[name])
         else:
-            new_nv = helper.make_tensor_value_info(name, TensorProto.FLOAT, None)    
+            new_nv = helper.make_tensor_value_info(name, tensor_type, None)    
         graph.input.extend([new_nv])
+    
+
+
     node_map = createGraphMemberMap(graph.node)
     input_map = createGraphMemberMap(graph.input)    
 
@@ -116,9 +160,9 @@ def onnx_edit(input_model, output_model, new_input_node_names, input_shape_map, 
             graph.output.remove(output_map[name])                              
     for name in new_names:
         if(name in output_shape_map.keys()):
-            new_nv = helper.make_tensor_value_info(name, TensorProto.FLOAT, output_shape_map[name])
+            new_nv = helper.make_tensor_value_info(name, TensorProto.FLOAT16, output_shape_map[name])
         else:
-            new_nv = helper.make_tensor_value_info(name, TensorProto.FLOAT, None)
+            new_nv = helper.make_tensor_value_info(name, TensorProto.FLOAT16, None)
         graph.output.extend([new_nv])
     output_map = createGraphMemberMap(graph.output)      
 
@@ -129,6 +173,7 @@ def onnx_edit(input_model, output_model, new_input_node_names, input_shape_map, 
         valid_node_names=traceDependentNodes(graph,new_output_node_name,valid_node_names,node_map, initializer_map)
         valid_node_names=list(set(valid_node_names))
     invalid_node_names = list( (set(node_map.keys()) | set(initializer_map.keys())) - set(valid_node_names))
+    
     # Remove all the invalid nodes from the graph               
     for name in invalid_node_names:
         if name in node_map.keys():
@@ -167,28 +212,33 @@ if __name__ == "__main__":
     parser.add_argument("input", help="input onnx model")
     parser.add_argument("output", help="output onnx model")
     parser.add_argument("--inputs", help="comma separated model input names appended with shapes, e.g. --inputs <nodename>[1,2,3],<nodename1>[1,2,3] ")
-    parser.add_argument("--outputs", help="comma separated model output names appended with shapes, e.g. --outputs <nodename>[1,2,3],<nodename1>[1,2,3] ")    
+    parser.add_argument("--outputs", help="comma separated model output names appended with shapes, e.g. --outputs <nodename>[1,2,3],<nodename1>[1,2,3] ")
+    parser.add_argument("--constants", help="comma separated model constant names appended with shapes, e.g. --outputs <nodename>[1,2,3],<nodename1>[1,2,3] ")
     parser.add_argument('--skipverify', dest='skipverify', action='store_true',
                     help='skip verification of model. Useful if shapes are not known')
     args = parser.parse_args()
+
+    new_input_node_names = []
+    input_shape_map = {}
+    new_output_node_names = []
+    output_shape_map = {}
+    constant_node_names = []
+    constant_shape_map = {}
         
     if args.inputs:
         new_input_node_names, input_shape_map = parse_nodename_and_shape(args.inputs)
         #print(new_input_node_names)
         #print(input_shape_map)
-    else: 
-        new_input_node_names = []
-        input_shape_map = {}
         
     if args.outputs:
         new_output_node_names, output_shape_map = parse_nodename_and_shape(args.outputs)
         #print(new_output_node_names)
         #print(output_shape_map)
-    else:
-        new_output_node_names = []
-        output_shape_map = {}
+
+    if args.constants:
+        constant_node_names, constant_shape_map = parse_nodename_and_shape(args.constants)
         
-    onnx_edit(args.input,args.output,new_input_node_names, input_shape_map, new_output_node_names, output_shape_map, not args.skipverify)
+    onnx_edit(args.input,args.output,new_input_node_names, input_shape_map, new_output_node_names, output_shape_map, constant_node_names, constant_shape_map, not args.skipverify)
     
         
         
