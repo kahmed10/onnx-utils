@@ -61,6 +61,10 @@ def onnx_edit(input_model, output_model, new_input_node_names, input_shape_map,
             If the list if empty original output nodes are assumed.
         output_shape_map: dictionary/map of output node names to corresponding shape. Shapes are needed for model checker to pass.
         verify: set to true if input and output models need to be verified.
+        constant_node_names: list of constant node names, including list of original constant nodes if they are to be retained
+            If the list if empty original constant nodes are assumed.
+        constant_shape_map: dictionary/map of constant node names to corresponding shape. Shapes are needed for model checker to pass.
+        verify: set to true if input and constant models need to be verified.
     """
     # LOAD MODEL AND PREP MAPS
     model = onnx.load(input_model)
