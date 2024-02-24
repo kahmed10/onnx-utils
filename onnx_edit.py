@@ -120,8 +120,6 @@ def onnx_edit(input_model, output_model, new_input_node_names, input_shape_map,
         
 
     node_map = createGraphMemberMap(graph.node)
-    print(constant_node_names[0].rstrip('_output_0') in node_map)
-    print(node_map[constant_node_names[0].rstrip('_output_0')])
        
     # MODIFY INPUTS
     # Break the graph based on the new input node names
