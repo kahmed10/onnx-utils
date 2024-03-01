@@ -29,8 +29,9 @@ if __name__ == "__main__":
     onnx_model = args.input_path
     if not os.path.exists(onnx_model):
         raise ValueError(f"Invalid input model path: {onnx_model}")
-
     output_path = args.output_path
+    if not os.path.exists(os.path.dirname(output_path)):
+        os.mkdir(os.path.dirname(output_path))
     num_layers = args.num_layers
     external_data = args.external_data
     onnx.checker.check_model(onnx_model)

@@ -211,6 +211,7 @@ def extract_model(
     e = Extractor(model)
     extracted = e.extract_model(input_names, output_names)
 
-    onnx.save(extracted, output_path)
+    onnx.save_model(extracted, output_path, save_as_external_data=True, all_tensors_to_one_file=False,
+                    size_threshold=1024, convert_attribute=False)
     if check_model:
         onnx.checker.check_model(output_path)
