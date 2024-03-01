@@ -16,8 +16,6 @@ def parse_args():
                         dest='output_path', help='path to output onnx file', required=True)
     parser.add_argument('--num-layers', type=int,  dest='num_layers',
                         help='Number of layers to chop from the top', required=True)
-    parser.add_argument('--shape-infer', dest="shape_infer", default=False,
-                        action='store_true', help='Flag to whether run shape inference or not')
     parser.add_argument('--external-data', dest='external_data', default=False,
                         action='store_true', help='Whether the model has any external data or not')
     args = parser.parse_args()
@@ -35,8 +33,7 @@ if __name__ == "__main__":
     external_data = args.external_data
     onnx.checker.check_model(onnx_model)
     model = onnx.load(onnx_model, load_external_data=False)
-    if args.shape_infer:
-        model = onnx.shape_inference.infer_shapes(model)
+    model = onnx.shape_inference.infer_shapes(model)
     if args.external_data:
         load_external_data_for_model(model, os.path.dirname(onnx_model))
     model_input_names = [i.name for i in model.graph.input]
@@ -46,13 +43,13 @@ if __name__ == "__main__":
     export_output_names = []
     for node in model.graph.node[0:num_layers]:
         for i in node.input:
-            if (i in model_input_names) or (i in model_weights_names):
-                if i not in export_input_names:
-                    export_input_names.append(i)
+            if (i in model_input_names and i not in export_input_names):
+                export_input_names.append(i)
             if i in export_output_names:
                 export_output_names.remove(i)
         for o in node.output:
-            export_output_names.append(o)
+            if o not in export_output_names and o not in model_weights_names:
+                export_output_names.append(o)
     print("model has total: " + str(len(model.graph.node)) +
           " layers and out of that extracting the first " + str(num_layers) + " layers")
     print("inputs to the extracted models are: ", export_input_names)
