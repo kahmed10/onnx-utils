@@ -24,6 +24,8 @@ def parse_args():
 
 if __name__ == "__main__":
     args, parser = parse_args()
+    # if you hit recursion limit, increase this number
+    sys.setrecursionlimit(30000)
     onnx_model = args.input_path
     if not os.path.exists(onnx_model):
         raise ValueError(f"Invalid input model path: {onnx_model}")
