@@ -9,7 +9,7 @@ import onnx.checker
 import onnx.helper
 import onnx.shape_inference
 from onnx import FunctionProto, ModelProto, NodeProto, TensorProto, ValueInfoProto
-from onnx.external_data_helper import load_external_data_for_model
+from onnx.external_data_helper import convert_model_to_external_data, load_external_data_for_model
 
 
 class Extractor:
@@ -182,7 +182,7 @@ class Extractor:
 
 
 def extract_model(
-    input_path: str | os.PathLike,
+    model: ModelProto,
     output_path: str | os.PathLike,
     input_names: list[str],
     output_names: list[str],
@@ -203,17 +203,10 @@ def extract_model(
         output_names (list of string): The names of the output tensors that to be extracted.
         check_model (bool): Whether to run model checker on the extracted model.
     """
-    if not os.path.exists(input_path):
-        raise ValueError(f"Invalid input model path: {input_path}")
     if not output_path:
         raise ValueError("Output model path shall not be empty!")
     if not output_names:
         raise ValueError("Output tensor names shall not be empty!")
-    onnx.checker.check_model(input_path)
-    model = onnx.load(input_path, load_external_data=False)
-    model = onnx.shape_inference.infer_shapes(model)
-    load_external_data_for_model(
-        model, os.path.dirname(input_path))
 
     e = Extractor(model)
     extracted = e.extract_model(input_names, output_names)
